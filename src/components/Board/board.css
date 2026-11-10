@@ -3,8 +3,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: fit-content;
+  /* Width comes from the container (not from the canvas inside it) so the
+     measurement loop is stable: frame → content box → canvas. */
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
   aspect-ratio: 1;
   margin-inline: auto;
   border-radius: 18px;
@@ -31,6 +34,7 @@
 
 .board-canvas {
   display: block;
+  flex: none;
   max-width: 100%;
   border-radius: 11px;
   touch-action: manipulation;
@@ -65,9 +69,12 @@
 }
 
 /* Miniature boards used inside cards and lesson lists */
-.board-mini .board-frame {
+.board-mini .board-frame,
+.pattern-card__board .board-frame,
+.pattern-detail__board .board-frame {
   border-radius: 10px;
   padding: 4px;
+  width: 100%;
   box-shadow: 0 1px 3px rgba(70, 48, 18, 0.2);
 }
 .board-mini .board-canvas {

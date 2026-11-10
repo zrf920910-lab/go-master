@@ -82,9 +82,17 @@ export function GoBoardCanvas(props: GoBoardCanvasProps) {
     const el = wrapRef.current;
     if (!el) return;
     const measure = () => {
-      const rect = el.getBoundingClientRect();
-      const side = Math.min(rect.width, rect.height || rect.width, effectiveMax);
-      setCss(Math.max(160, Math.floor(side)));
+      // Measure the *content box*: the frame has padding and a border, and if
+      // we ignore them the canvas is wider than its slot, which makes browsers
+      // squash it and the stones stop being round.
+      const style = getComputedStyle(el);
+      const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      const border = parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+      // clientWidth/Height ignore the canvas inside, so measuring never feeds
+      // back into itself.
+      const available = Math.max(0, el.clientWidth - padX - border);
+      const side = Math.min(available, effectiveMax);
+      setCss(Math.max(80, Math.floor(side)));
     };
     measure();
     const ro = new ResizeObserver(measure);

@@ -87,7 +87,7 @@ export function LibraryPage({ go }: { go: Navigate }) {
                   size={board.size}
                   cells={board.cells}
                   interactive={false}
-                  maxSize={150}
+                  maxSize={96}
                   ariaLabel={`${p.name} 棋形`}
                 />
               </div>
