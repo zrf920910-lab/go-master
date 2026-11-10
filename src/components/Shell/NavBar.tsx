@@ -88,11 +88,11 @@ export function NavBar({
             </button>
           );
         })}
-        <button className="tabbar__item" onClick={() => go({ name: 'online' })} aria-label="在线对弈">
+        <button className="tabbar__item" onClick={() => go({ name: 'review' })} aria-label="棋谱">
           <span className="tabbar__icon" aria-hidden>
-            🌐
+            ⌘
           </span>
-          <span className="tabbar__label">在线</span>
+          <span className="tabbar__label">棋谱</span>
         </button>
       </nav>
     </>
