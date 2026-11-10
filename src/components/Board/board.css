@@ -1,7 +1,8 @@
 .board-frame {
   position: relative;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: fit-content;
   max-width: 100%;
   aspect-ratio: 1;

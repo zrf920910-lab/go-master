@@ -238,8 +238,6 @@ export function GoBoardCanvas(props: GoBoardCanvasProps) {
           }}
         />
       </div>
-      <span className="board-frame__edge board-frame__edge--top" aria-hidden />
-      <span className="board-frame__edge board-frame__edge--bottom" aria-hidden />
     </div>
   );
 }

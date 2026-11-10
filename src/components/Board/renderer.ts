@@ -328,12 +328,25 @@ export function drawBoard(ctx: CanvasRenderingContext2D, opts: DrawOptions) {
       ctx.fillStyle = m.color ?? 'rgba(30, 79, 122, 0.9)';
       ctx.fill();
     } else if (m.kind === 'label') {
-      ctx.fillStyle = m.color ?? '#1e4f7a';
-      const fs = Math.max(10, geo.cell * 0.4);
+      // Labels sit in a small pill above the point so they never obscure the
+      // stones or liberty dots they are describing.
+      const fs = Math.max(10, geo.cell * 0.38);
+      const text = m.text ?? '';
       ctx.font = `700 ${fs}px ${getComputedStyle(document.body).fontFamily}`;
+      const tw = ctx.measureText(text).width;
+      const pw = tw + fs * 0.9;
+      const ph = fs * 1.7;
+      const ly = cy - geo.cell * 0.78 - ph / 2;
+      const lx = Math.max(pw / 2 + 2, Math.min(css - pw / 2 - 2, cx));
+      ctx.fillStyle = m.color ?? 'rgba(30, 79, 122, 0.94)';
+      const rr = ph / 2;
+      ctx.beginPath();
+      ctx.roundRect(lx - pw / 2, ly - ph / 2, pw, ph, rr);
+      ctx.fill();
+      ctx.fillStyle = '#fdfbf4';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(m.text ?? '', cx, cy);
+      ctx.fillText(text, lx, ly + 0.5);
     }
   };
 

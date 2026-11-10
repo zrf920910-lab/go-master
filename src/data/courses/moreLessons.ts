@@ -601,7 +601,11 @@ export const moreLessons: Lesson[] = [
       },
       {
         text: '但 C3 是白棋的禁入点：白棋下进去会立刻被提走。E3 也一样。',
-        actions: [{ type: 'mark', at: 'E3', kind: 'label', text: '同样是禁入点' }],
+        actions: [
+          { type: 'clearMarks' },
+          { type: 'mark', at: 'C3', kind: 'target' },
+          { type: 'mark', at: 'E3', kind: 'target' },
+        ],
         hold: 2000,
       },
       {
