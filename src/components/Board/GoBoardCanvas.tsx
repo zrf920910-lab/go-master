@@ -27,6 +27,12 @@ export interface GoBoardCanvasProps {
   className?: string;
   /** Constraints the board's max size in CSS px (it also fits its container). */
   maxSize?: number;
+  /**
+   * Vertical space (px) reserved for controls above/below the board when the
+   * board is capped by viewport height. Screens where the board shares a
+   * column with nothing else can pass 0 and use the full height.
+   */
+  heightReserve?: number;
   ariaLabel?: string;
   /** Read-only boards still render marks and highlight. */
   interactive?: boolean;
@@ -51,6 +57,7 @@ export function GoBoardCanvas(props: GoBoardCanvasProps) {
     disabled,
     className,
     maxSize = 760,
+    heightReserve = 300,
     ariaLabel,
     interactive = true,
   } = props;
@@ -75,7 +82,7 @@ export function GoBoardCanvas(props: GoBoardCanvasProps) {
 
   // Never let the board push its controls off screen: it is capped by the
   // smaller of the configured maximum and the visible height.
-  const heightCap = Math.max(220, viewportH - 300);
+  const heightCap = Math.max(220, viewportH - heightReserve);
   const effectiveMax = Math.min(maxSize, heightCap);
 
   useLayoutEffect(() => {
@@ -88,9 +95,23 @@ export function GoBoardCanvas(props: GoBoardCanvasProps) {
       const style = getComputedStyle(el);
       const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
       const border = parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
-      // clientWidth/Height ignore the canvas inside, so measuring never feeds
-      // back into itself.
-      const available = Math.max(0, el.clientWidth - padX - border);
+      // Measure the *parent*, not the frame itself: the frame's width is set
+      // from `css` on the previous render, so using el.clientWidth would create
+      // a feedback loop and lock the board at its first size (e.g. after the
+      // page switches into fullscreen play the board never grows).
+      const host = el.parentElement;
+      const hostStyle = host ? getComputedStyle(host) : null;
+      const hostPad = hostStyle
+        ? parseFloat(hostStyle.paddingLeft) + parseFloat(hostStyle.paddingRight)
+        : 0;
+      // The frame carries an inline width from the previous render, so only the
+      // parent is a trustworthy source of "how much room do we have". Also cap
+      // by the viewport: a flex parent with no width constraint can otherwise
+      // report a width inflated by this very frame (a feedback loop), which is
+      // what made lesson boards spill off small screens.
+      const hostWidth = host ? host.clientWidth - hostPad : el.clientWidth;
+      const viewportCap = (typeof window !== 'undefined' ? window.innerWidth : 1024) - 24;
+      const available = Math.max(0, Math.min(hostWidth, viewportCap) - padX - border);
       const side = Math.min(available, effectiveMax);
       setCss(Math.max(80, Math.floor(side)));
     };

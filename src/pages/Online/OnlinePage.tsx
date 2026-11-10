@@ -56,6 +56,7 @@ export function OnlinePage() {
 
   const sessionRef = useRef<OnlineGameSession | null>(null);
   const [state, setState] = useState<OnlineGameState>(EMPTY_ONLINE_STATE);
+  const [immersive, setImmersive] = useState(false);
 
   useEffect(() => {
     const up = () => setOnline(true);
@@ -67,6 +68,18 @@ export function OnlinePage() {
       window.removeEventListener('offline', down);
     };
   }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle('zen-mode', immersive);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setImmersive(false);
+    };
+    if (immersive) window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.classList.remove('zen-mode');
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [immersive]);
 
   // Handle the OAuth redirect callback exactly once.
   useEffect(() => {
@@ -194,7 +207,7 @@ export function OnlinePage() {
   }, [online, tokensPresent, state.status]);
 
   return (
-    <div className="page">
+    <div className={immersive ? 'page online-page--immersive' : 'page'}>
       <header className="page-head">
         <div>
           <p className="eyebrow">在线对弈</p>
@@ -374,6 +387,32 @@ export function OnlinePage() {
 
           {board && (
             <section className="online-game">
+              {immersive && (
+                <div className="zen-topbar zen-topbar--online">
+                  <button
+                    className="icon-btn zen-topbar__btn"
+                    onClick={() => setImmersive(false)}
+                    aria-label="退出全屏对弈"
+                    title="退出全屏对弈"
+                  >
+                    ✕
+                  </button>
+                  <div className="zen-topbar__players">
+                    <span className={`zen-player ${board.turn === BLACK ? 'zen-player--active' : ''}`}>
+                      <span className="zen-stone zen-stone--black" aria-hidden />
+                      {state.black.username} · 黑
+                    </span>
+                    <span className="zen-topbar__vs">第 {state.gameId} 局 · {state.moveNumber} 手</span>
+                    <span className={`zen-player ${board.turn === WHITE ? 'zen-player--active' : ''}`}>
+                      <span className="zen-stone zen-stone--white" aria-hidden />
+                      {state.white.username} · 白
+                    </span>
+                  </div>
+                  <span className={`chip ${myTurn ? 'chip--green' : 'chip--blue'}`}>
+                    {state.status === 'finished' ? '对局结束' : myTurn ? '轮到你' : '等待对手'}
+                  </span>
+                </div>
+              )}
               <div className="online-game__board">
                 <div className="online-game__players">
                   <span>
@@ -396,7 +435,8 @@ export function OnlinePage() {
                   lastMove={state.lastMove}
                   disabled={!myTurn}
                   showCoordinates={board.size === 19}
-                  maxSize={620}
+                  maxSize={immersive ? 900 : 620}
+                  heightReserve={immersive ? 150 : 300}
                   onPlay={(i) => {
                     if (!myTurn) return false;
                     void sessionRef.current?.play(i).catch((err) => setError((err as Error).message));
@@ -405,6 +445,13 @@ export function OnlinePage() {
                   ariaLabel="OGS 在线对局棋盘"
                 />
                 <div className="online-game__actions">
+                  <button
+                    className="btn btn--sm zen-enter"
+                    onClick={() => setImmersive((v) => !v)}
+                    aria-label={immersive ? '退出全屏对弈' : '进入全屏对弈'}
+                  >
+                    {immersive ? '✕ 退出全屏' : '⛶ 全屏对弈'}
+                  </button>
                   <span className={`turn-pill ${myTurn ? 'turn-pill--me' : ''}`}>
                     {state.status === 'finished' ? '对局结束' : myTurn ? '轮到你' : '等待对手'}
                   </span>

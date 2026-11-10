@@ -43,7 +43,6 @@ export function BattlePage({ go }: { go: Navigate }) {
   const startedAt = useRef(Date.now());
   const aiBusy = useRef(false);
 
-  const humanColor: Color = aiColor === BLACK ? WHITE : BLACK;
   // The engine is chosen through the same registry the settings UI uses, so a
   // remote KataGo service can be swapped in without touching this page's logic.
   const aiSettings = useMemo<AISettings>(
@@ -55,7 +54,62 @@ export function BattlePage({ go }: { go: Navigate }) {
   const [teacherOn, setTeacherOn] = useState(true);
   const [focusPoint, setFocusPoint] = useState<number | undefined>(undefined);
   const [panel, setPanel] = useState<'teacher' | 'katago'>('teacher');
+  /** Fullscreen play: the board owns the screen, settings collapse to a toolbar.
+      Opt-in (never forced): the choice is remembered per device. */
+  const [immersive, setImmersive] = useState(() => {
+    try {
+      return localStorage.getItem('gomaster.battle.immersive') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [toolbarOpen, setToolbarOpen] = useState(false);
+
+  const humanColor: Color = aiColor === BLACK ? WHITE : BLACK;
   const gameOver = board.passes >= 2;
+
+  // Remember the fullscreen choice; never auto-enter, so the teaching panel
+  // stays visible until the learner explicitly asks for a distraction-free board.
+  useEffect(() => {
+    try {
+      localStorage.setItem('gomaster.battle.immersive', immersive ? '1' : '0');
+    } catch {
+      /* private mode */
+    }
+  }, [immersive]);
+
+  // Tell the shell to hide its chrome while playing fullscreen.
+  useEffect(() => {
+    document.body.classList.toggle('zen-mode', immersive);
+    return () => document.body.classList.remove('zen-mode');
+  }, [immersive]);
+
+  // Escape leaves fullscreen play, which is what people expect from a modal.
+  useEffect(() => {
+    if (!immersive) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setToolbarOpen(false);
+        setImmersive(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [immersive]);
+
+  // Also offer the browser's real fullscreen; ignore rejection (iOS Safari).
+  const enterBrowserFullscreen = useCallback(async () => {
+    const el = document.documentElement as HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void>;
+    };
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen?.();
+      else if (el.requestFullscreen) await el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+    } catch {
+      /* fullscreen is a bonus, never a requirement */
+    }
+  }, []);
 
   const newGame = useCallback(
     (nextSize = size, nextDiff = difficulty, nextAi = aiColor) => {
@@ -238,8 +292,57 @@ export function BattlePage({ go }: { go: Navigate }) {
   const ownership = scoring?.ownership ?? null;
 
   return (
-    <div className="page page--wide">
-      <div className="battle">
+    <div className={immersive ? 'battle-page battle-page--immersive' : 'battle-page page page--wide'}>
+  {immersive && (
+      <div className="zen-topbar">
+        <button
+          className="icon-btn zen-topbar__btn"
+          onClick={() => {
+            setImmersive(false);
+            setToolbarOpen(false);
+          }}
+          aria-label="退出全屏对弈"
+          title="退出全屏对弈"
+        >
+          ✕
+        </button>
+        <div className="zen-topbar__players">
+          <span className={`zen-player ${board.turn === aiColor ? 'zen-player--active' : ''}`}>
+            <span className="zen-stone zen-stone--black" aria-hidden />
+            {DIFFICULTIES.find((d) => d.level === difficulty)?.name} · 提 {aiColor === BLACK ? board.captures.black : board.captures.white}
+          </span>
+          <span className="zen-topbar__vs">对局</span>
+          <span className={`zen-player ${board.turn === humanColor ? 'zen-player--active' : ''}`}>
+            <span className="zen-stone zen-stone--white" aria-hidden />
+            {profile.name} · 提 {humanColor === BLACK ? board.captures.black : board.captures.white}
+          </span>
+        </div>
+        <span className={`chip ${board.turn === humanColor ? 'chip--green' : 'chip--blue'}`}>
+          {gameOver ? '已结束' : scoring ? '数子中' : board.turn === humanColor ? '轮到你' : thinking ? '思考中' : '等待电脑'}
+        </span>
+        <div className="row" style={{ gap: 6 }}>
+          <button
+            className="icon-btn zen-topbar__btn"
+            onClick={enterBrowserFullscreen}
+            aria-label="切换系统全屏"
+            title="切换系统全屏（Safari 可能不支持）"
+          >
+            ⛶
+          </button>
+          <button
+            className={`icon-btn zen-topbar__btn ${toolbarOpen ? 'zen-topbar__btn--on' : ''}`}
+            onClick={() => setToolbarOpen((v) => !v)}
+            aria-label="打开对局工具"
+            aria-expanded={toolbarOpen}
+            title="对局工具"
+          >
+            ⚙︎
+          </button>
+        </div>
+      </div>
+    )}
+
+        <div className="battle">
         <div className="battle__board">
           <div className="battle__opponent">
             <span className="battle__avatar" aria-hidden>
@@ -280,7 +383,8 @@ export function BattlePage({ go }: { go: Navigate }) {
             ownership={ownership}
             showCoordinates={profile.settings.coordinates || size === 19}
             disabled={Boolean(scoring) ? false : board.turn !== humanColor}
-            maxSize={640}
+            maxSize={immersive ? 900 : 720}
+            heightReserve={immersive ? 150 : 240}
             ariaLabel="对弈棋盘"
           />
 
@@ -297,6 +401,16 @@ export function BattlePage({ go }: { go: Navigate }) {
             <span className={`turn-pill ${board.turn === humanColor && !scoring && !gameOver ? 'turn-pill--me' : ''}`}>
               {gameOver ? '已结束' : scoring ? '数子中' : board.turn === humanColor ? '轮到你' : '等待电脑'}
             </span>
+            {!immersive && (
+              <button
+                className="btn btn--sm zen-enter"
+                onClick={() => setImmersive(true)}
+                aria-label="进入全屏对弈"
+                title="全屏对弈：棋盘铺满屏幕"
+              >
+                ⛶ 全屏对弈
+              </button>
+            )}
           </div>
 
           {lastHint && (
@@ -310,6 +424,63 @@ export function BattlePage({ go }: { go: Navigate }) {
             </p>
           )}
         </div>
+
+        {immersive && toolbarOpen && (
+          <div className="zen-toolbar" role="dialog" aria-label="对局工具">
+            <div className="zen-toolbar__head">
+              <h2 className="h3">对局工具</h2>
+              <button className="icon-btn" onClick={() => setToolbarOpen(false)} aria-label="关闭工具">
+                ✕
+              </button>
+            </div>
+            <div className="zen-toolbar__grid">
+              <button
+                className="btn"
+                onClick={() => {
+                  const copy = board.clone();
+                  copy.undo();
+                  if (copy.turn !== humanColor) copy.undo();
+                  setBoard(copy);
+                  setScoring(null);
+                }}
+                disabled={board.history.length === 0 || gameOver || Boolean(scoring)}
+              >
+                悔棋
+              </button>
+              <button
+                className="btn"
+                onClick={() => {
+                  if (board.turn !== humanColor) return;
+                  const copy = board.clone();
+                  copy.pass();
+                  setBoard(copy);
+                  setLastHint(null);
+                }}
+                disabled={board.turn !== humanColor || gameOver || Boolean(scoring)}
+              >
+                停一手
+              </button>
+              <button className="btn" onClick={doScore} disabled={board.history.length < 4}>
+                结算
+              </button>
+              <button className="btn btn--danger" onClick={resign} disabled={board.history.length === 0}>
+                认输
+              </button>
+              <button className="btn" onClick={() => setConfirmNew(true)}>重新开始</button>
+              <button className="btn" onClick={() => saveGame(scoring ?? undefined)} disabled={board.history.length === 0}>
+                保存棋谱
+              </button>
+              <button className="btn" onClick={() => setShowHelp(true)}>规则说明</button>
+              <button
+                className="btn"
+                onClick={() => updateSettings({ coordinates: !profile.settings.coordinates })}
+                aria-pressed={profile.settings.coordinates}
+              >
+                {profile.settings.coordinates ? '隐藏坐标' : '显示坐标'}
+              </button>
+            </div>
+          </div>
+        )}
 
         <aside className="battle__side">
           <div className="card card--pad">
@@ -600,7 +771,7 @@ export function BattlePage({ go }: { go: Navigate }) {
         }}
       />
 
-      <div className="battle__footer tiny mute-2">
+      <div className={`battle__footer tiny mute-2 ${immersive ? 'battle__footer--zen' : ''}`}>
         <span>
           {DIFFICULTIES.find((d) => d.level === difficulty)?.name} 档 · 第 {board.history.length} 手 · 贴目{' '}
           {profile.settings.komi}
