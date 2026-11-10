@@ -401,13 +401,24 @@ export function coach(board: GoBoard, color: Color): Advice[] {
   if (atari) out.push(atari);
   const captures = findCaptures(board, color);
   if (captures) out.push(captures);
-  const connect = findUrgentConnection(board, color);
-  if (connect) out.push(connect);
-  if (!atari && !captures) {
-    const cut = findCutOpportunity(board, color);
-    if (cut) out.push(cut);
+
+  // Everything below is optional advice. If the player is already in danger,
+  // suggesting "you could also connect over here" is noise, so only show it
+  // when nothing more urgent is happening.
+  const critical = atari?.severity === 'critical';
+  if (!critical) {
+    const connect = findUrgentConnection(board, color);
+    if (connect) out.push(connect);
+    if (!atari && !captures) {
+      const cut = findCutOpportunity(board, color);
+      if (cut) out.push(cut);
+    }
   }
-  out.push(attackOrDefend(board, color));
+
+  // The attack/defend summary is always useful, but it must not read as
+  // "go attack" while the player's own stones are in atari.
+  const summary = attackOrDefend(board, color);
+  if (!critical || summary.kind === 'rescue') out.push(summary);
   const order: Record<AdviceKind, number> = {
     danger: 0,
     rescue: 1,

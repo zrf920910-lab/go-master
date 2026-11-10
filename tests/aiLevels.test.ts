@@ -222,6 +222,21 @@ describe('teaching engine: every explanation is grounded', () => {
     }
   });
 
+  it('puts a critical rescue first and suppresses optional advice', () => {
+    // White E5 is genuinely in atari: the only liberty is D5.
+    const board = setup(['E6', 'E4', 'F5'], ['E5'], WHITE);
+    expect(board.group(p(9, 'E5')).liberties.length).toBe(1);
+    const list = coach(board, WHITE);
+    expect(list[0].kind).toBe('rescue');
+    expect(list[0].severity).toBe('critical');
+    // No "you could cut over there" noise while the player is about to lose a
+    // block.
+    expect(list.some((a) => a.kind === 'cut')).toBe(false);
+    // And the summary must not read as "attack".
+    const summary = list.find((a) => a.facts.ownAtari !== undefined);
+    expect(summary?.kind).toBe('rescue');
+  });
+
   it('quotes coordinates that exist on the board', () => {
     const board = setup(['D5', 'E4', 'F5'], ['E5'], WHITE);
     const advice = warnAboutAtari(board, WHITE)!;
