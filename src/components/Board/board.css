@@ -1,0 +1,74 @@
+.board-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: fit-content;
+  max-width: 100%;
+  aspect-ratio: 1;
+  margin-inline: auto;
+  border-radius: 18px;
+  padding: clamp(6px, 1.1vw, 12px);
+  background:
+    linear-gradient(160deg, #c79b5d 0%, #b98a4c 45%, #a97a3f 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 244, 219, 0.55) inset,
+    0 -3px 0 rgba(90, 58, 20, 0.35) inset,
+    var(--shadow-board);
+  touch-action: manipulation;
+}
+
+.board-frame__inner {
+  position: relative;
+  flex: none;
+  max-width: 100%;
+  border-radius: 11px;
+  overflow: hidden;
+  box-shadow:
+    0 2px 6px rgba(70, 44, 10, 0.28) inset,
+    0 0 0 1px rgba(87, 55, 14, 0.35);
+}
+
+.board-canvas {
+  display: block;
+  max-width: 100%;
+  border-radius: 11px;
+  touch-action: manipulation;
+}
+
+.board-frame[data-shake='1'],
+.board-frame[data-shake='2'],
+.board-frame[data-shake='3'],
+.board-frame[data-shake='4'],
+.board-frame[data-shake='5'] {
+  animation: board-shake 0.34s ease;
+}
+
+@keyframes board-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  55% {
+    transform: translateX(3px);
+  }
+  80% {
+    transform: translateX(-1px);
+  }
+}
+
+.board-frame--fixed {
+  max-width: min(560px, 82vh);
+}
+
+/* Miniature boards used inside cards and lesson lists */
+.board-mini .board-frame {
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 1px 3px rgba(70, 48, 18, 0.2);
+}
+.board-mini .board-canvas {
+  border-radius: 7px;
+}

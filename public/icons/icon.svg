@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="围棋大师">
+  <rect width="512" height="512" rx="112" fill="#e8c98f"/>
+  <g stroke="#6b4f2a" stroke-width="6" opacity="0.75">
+    <path d="M120 120h272M120 184h272M120 248h272M120 312h272M120 376h272"/>
+    <path d="M120 120v256M184 120v256M248 120v256M312 120v256M376 120v256"/>
+  </g>
+  <circle cx="312" cy="184" r="46" fill="#f7f4ec"/>
+  <circle cx="248" cy="248" r="46" fill="#1a1917"/>
+  <circle cx="184" cy="312" r="46" fill="#f7f4ec"/>
+  <circle cx="312" cy="184" r="46" fill="none" stroke="#cdc6b8" stroke-width="3"/>
+  <circle cx="184" cy="312" r="46" fill="none" stroke="#cdc6b8" stroke-width="3"/>
+</svg>

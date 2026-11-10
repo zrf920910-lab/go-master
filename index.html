@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5"
+    />
+    <meta name="theme-color" content="#f7f1e6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="围棋大师" />
+    <meta
+      name="description"
+      content="围棋大师 Go Master：从零开始学习围棋的完整课程、动画演示、30 关闯关挑战与电脑对弈。"
+    />
+    <title>围棋大师 · Go Master</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <style>
+      /* Avoid a flash of unstyled content before the bundle loads. */
+      html,
+      body {
+        margin: 0;
+        background: #f7f1e6;
+      }
+      #root:empty::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: #f7f1e6;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>这个应用需要 JavaScript 才能运行。</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
