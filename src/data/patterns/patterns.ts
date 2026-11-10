@@ -1,5 +1,6 @@
 import type { PositionSpec } from '../../app/types';
 import { pos } from '../../learning/Exercises/pos';
+import { sealedShape, LIFE_SHAPES } from '../../learning/Exercises/sealedShape';
 
 /**
  * The pattern library.
@@ -173,7 +174,7 @@ export const PATTERNS: PatternDef[] = [
     definition: '眼里三个空点排成一条直线。这是死形。',
     detail: '对方下在正中间，直三就做不出两只眼。',
     tags: ['直三', '死活'],
-    position: p(['O B2', 'O C2', 'O D2', 'O E2', 'O F2', 'O B3', 'O F3', 'O B4', 'O C4', 'O D4', 'O E4', 'O F4']),
+    position: sealedShape(LIFE_SHAPES.straightThree),
     lessonId: 'l-life-shapes',
   },
   {
@@ -182,11 +183,7 @@ export const PATTERNS: PatternDef[] = [
     category: '死活题',
     definition: '眼里四个空点排成一条直线。这是活形。',
     tags: ['直四', '死活'],
-    position: p([
-      'O B2', 'O C2', 'O D2', 'O E2', 'O F2', 'O G2',
-      'O B3', 'O G3',
-      'O B4', 'O C4', 'O D4', 'O E4', 'O F4', 'O G4',
-    ]),
+    position: sealedShape(LIFE_SHAPES.straightFour),
     lessonId: 'l-life-shapes',
   },
   {
@@ -196,7 +193,7 @@ export const PATTERNS: PatternDef[] = [
     definition: '眼里三个空点折成弯，也是死形。',
     detail: '曲三的要点在弯角处。',
     tags: ['曲三', '死活'],
-    position: p(['O C2', 'O D2', 'O E2', 'O C3', 'O E3', 'O C4', 'O D4', 'O E4']),
+    position: sealedShape(LIFE_SHAPES.curvedThree),
     lessonId: 'l-life-shapes',
   },
   {
@@ -488,7 +485,7 @@ export const PATTERNS: PatternDef[] = [
     category: '死活题',
     definition: '做不出两只眼、也无法逃脱的棋。终局时会被从棋盘上拿走。',
     tags: ['死棋', '死活'],
-    position: p(['O B2', 'O C2', 'O D2', 'O E2', 'O F2', 'O B3', 'O F3', 'O B4', 'O C4', 'O D4', 'O E4', 'O F4']),
+    position: sealedShape(LIFE_SHAPES.straightThree),
     lessonId: 'l-life-shapes',
   },
   {
@@ -507,7 +504,7 @@ export const PATTERNS: PatternDef[] = [
     definition: '一块棋能用来做眼的空地。眼位越大，越容易做活。',
     detail: '三点的眼位是死形，四点的眼位通常已经活了。',
     tags: ['眼位', '死活'],
-    position: p(['O B2', 'O C2', 'O D2', 'O E2', 'O F2', 'O B3', 'O F3', 'O B4', 'O C4', 'O D4', 'O E4', 'O F4']),
+    position: sealedShape(LIFE_SHAPES.straightThree),
     lessonId: 'l-life-shapes',
   },
   {
@@ -517,7 +514,7 @@ export const PATTERNS: PatternDef[] = [
     definition: '眼里只有两个空点排成直线。这是死形。',
     detail: '两个空点最多只能做出一只眼，所以一定做不活。',
     tags: ['直二', '死活'],
-    position: p(['O B2', 'O C2', 'O D2', 'O E2', 'O B3', 'O E3', 'O B4', 'O C4', 'O D4', 'O E4']),
+    position: sealedShape(LIFE_SHAPES.straightTwo),
     lessonId: 'l-life-shapes',
   },
   {
@@ -527,7 +524,7 @@ export const PATTERNS: PatternDef[] = [
     definition: '眼里四个空点排成 2×2 的方块。这是死形。',
     detail: '对方可以一直填，你无法在其中做出两只眼。',
     tags: ['方四', '死活'],
-    position: p(['O B2', 'O C2', 'O D2', 'O E2', 'O B3', 'O E3', 'O B4', 'O E4']),
+    position: sealedShape(LIFE_SHAPES.squareFour),
     lessonId: 'l-life-shapes',
   },
   {
@@ -536,7 +533,7 @@ export const PATTERNS: PatternDef[] = [
     category: '死活题',
     definition: '眼里四个空点排成「丁」字形。这是死形。',
     tags: ['丁四', '死活'],
-    position: p(['O B2', 'O C2', 'O D2', 'O E2', 'O F2', 'O B3', 'O E3', 'O F3', 'O B4', 'O C4', 'O D4', 'O E4', 'O F4']),
+    position: sealedShape(LIFE_SHAPES.tFour),
     lessonId: 'l-life-shapes',
   },
   {
@@ -545,17 +542,17 @@ export const PATTERNS: PatternDef[] = [
     category: '死活题',
     definition: '眼里四个空点折成弯。这是活形。',
     tags: ['曲四', '死活'],
-    position: p(['O B2', 'O C2', 'O D2', 'O E2', 'O B3', 'O E3', 'O B4', 'O E4', 'O B5', 'O C5', 'O D5', 'O E5']),
+    position: sealedShape(LIFE_SHAPES.curvedFour),
     lessonId: 'l-life-shapes',
   },
   {
     id: 'pt-knife-five',
     name: '刀五',
     category: '死活题',
-    definition: '五个空点排成刀形，是死形；但如果多一口气就变成活形。',
-    detail: '刀五是入门死活里最容易搞错的形状之一。',
+    definition: '五个空点排成「刀」形（三横加下方两点），是死形。',
+    detail: '刀五的要点在中间。对方占住要点后，这块棋就做不出两只眼。',
     tags: ['刀五', '死活'],
-    position: p(['O B2', 'O C2', 'O D2', 'O E2', 'O F2', 'O B3', 'O F3', 'O B4', 'O C4', 'O E4', 'O F4', 'O B5', 'O C5', 'O D5', 'O E5', 'O F5']),
+    position: sealedShape(LIFE_SHAPES.knifeFive),
     lessonId: 'l-life-shapes',
   },
   {
@@ -564,7 +561,7 @@ export const PATTERNS: PatternDef[] = [
     category: '死活题',
     definition: '六个空点排成 2×3，是活形。',
     tags: ['葡萄六', '死活'],
-    position: p(['O B2', 'O C2', 'O D2', 'O E2', 'O B3', 'O E3', 'O B4', 'O E4', 'O B5', 'O C5', 'O D5', 'O E5']),
+    position: sealedShape(LIFE_SHAPES.grapeSix),
     lessonId: 'l-life-shapes',
   },
   {

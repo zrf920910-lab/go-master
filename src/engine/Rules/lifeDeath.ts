@@ -178,9 +178,12 @@ export function analyzeLife(
   if (points.length === 0) return { alive: false, eyeSpace: eyes, points };
 
   const cap = opts.nodes ?? 400000;
-  // 2 plies per eye-space point + 4 to settle, capped so a huge eye space (which
-  // is alive anyway) does not explode.
-  const depth = opts.depth ?? Math.max(12, Math.min(24, points.length * 2 + 6));
+  // Depth has to cover every filler move plus the answer to it, and the
+  // required depth grows faster than 2·N for the bulky shapes: 刀五 (five
+  // points) needs ~24 plies, 方四 (four) needs ~14. 5·N + 4 covers the family
+  // with margin while staying cheap, because the eye-space-only search prunes
+  // hard (a few milliseconds even at depth 30).
+  const depth = opts.depth ?? Math.max(12, Math.min(34, points.length * 5 + 4));
 
   const search = new Search(color, stones.length, points, cap);
   const defenderFirst = board.turn === color;

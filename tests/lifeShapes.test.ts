@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { GoBoard } from '../src/engine/GoBoard/GoBoard';
 import { BLACK, WHITE } from '../src/engine/GoBoard/types';
 import { analyzeLife, eyeSpace } from '../src/engine/Rules/lifeDeath';
-import { boardToDiagram } from '../src/learning/Exercises/position';
+import { boardToDiagram, boardFromSpec } from '../src/learning/Exercises/position';
+import { sealedShape as buildSealed, LIFE_SHAPES } from '../src/learning/Exercises/sealedShape';
 
 /**
  * Classic life-and-death shapes, checked against Go theory.
@@ -21,43 +22,17 @@ const at = (label: string) => {
   const y = 9 - Number(label.slice(1));
   return { x, y };
 };
-const neighbours = (label: string) => {
-  const { x, y } = at(label);
-  const out: string[] = [];
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      if (!dx && !dy) continue;
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx > 8 || ny > 8) continue;
-      out.push(`${LETTERS[nx]}${9 - ny}`);
+function verdict(interior: string[]) {
+  const board = boardFromSpec(buildSealed(interior));
+  // Find the defender's block: the sealed shape always has one.
+  let root = -1;
+  for (let i = 0; i < board.cells.length; i++) {
+    if (board.cells[i] === WHITE) {
+      root = i;
+      break;
     }
   }
-  return out;
-};
-
-/** Build a sealed group whose eye space is exactly `interior`. */
-function sealedShape(interior: string[]): { board: GoBoard; ring: string[] } {
-  const inside = new Set(interior);
-  const ringSet = new Set<string>();
-  for (const p of interior) for (const n of neighbours(p)) if (!inside.has(n)) ringSet.add(n);
-  const wall = new Set<string>();
-  for (const r of ringSet) for (const n of neighbours(r)) if (!inside.has(n) && !ringSet.has(n)) wall.add(n);
-
-  const board = GoBoard.fromSetup(
-    9,
-    [
-      ...[...wall].map((l) => ({ ...at(l), color: BLACK })),
-      ...[...ringSet].map((l) => ({ ...at(l), color: WHITE })),
-    ],
-    BLACK,
-  );
-  return { board, ring: [...ringSet] };
-}
-
-function verdict(interior: string[]) {
-  const { board, ring } = sealedShape(interior);
-  const root = (9 - Number(ring[0].slice(1))) * 9 + LETTERS.indexOf(ring[0][0]);
+  if (root < 0) throw new Error(`no defender block for ${interior.join(',')}`);
   // The attacker (black) moves first: the worst case for the defender.
   const attack = analyzeLife(board, root, {});
   const defenderFirst = board.clone();
@@ -113,8 +88,15 @@ describe('life and death: classic shapes match Go theory', () => {
     // Take the sealed three-point shape and fill its middle point with a stone
     // of the defender's colour: the remaining eye space becomes two separate
     // one-point eyes.
-    const { board, ring } = sealedShape(['D3', 'E3', 'F3']);
-    const root = (9 - Number(ring[0].slice(1))) * 9 + LETTERS.indexOf(ring[0][0]);
+    const board = boardFromSpec(buildSealed(['D3', 'E3', 'F3']));
+    let start = -1;
+    for (let i = 0; i < board.cells.length; i++) {
+      if (board.cells[i] === WHITE) {
+        start = i;
+        break;
+      }
+    }
+    const root = start;
     const eye = eyeSpace(board, board.group(root).stones).sort();
     expect(eye.length).toBe(3);
 
@@ -138,6 +120,41 @@ describe('life and death: classic shapes match Go theory', () => {
     expect(analyzeLife(board, root, {}).alive).toBe(false);
   });
 
+  it('uses sealed shapes for the pattern library and they agree with theory', () => {
+    // The published pattern diagrams must be real enclosed groups, not floating
+    // rings, and the solver's verdict must match the text the learner reads.
+    const expected: Array<[string, readonly string[], boolean]> = [
+      ['直二', LIFE_SHAPES.straightTwo, false],
+      ['直三', LIFE_SHAPES.straightThree, false],
+      ['曲三', LIFE_SHAPES.curvedThree, false],
+      ['方四', LIFE_SHAPES.squareFour, false],
+      ['丁四', LIFE_SHAPES.tFour, false],
+      ['刀五', LIFE_SHAPES.knifeFive, false],
+      ['直四', LIFE_SHAPES.straightFour, true],
+      ['曲四', LIFE_SHAPES.curvedFour, true],
+      ['葡萄六', LIFE_SHAPES.grapeSix, true],
+    ];
+    for (const [name, interior, shouldLive] of expected) {
+      const spec = buildSealed(interior);
+      if (!spec || !spec.diagram) {
+        throw new Error(`sealedShape(${name}) returned ${JSON.stringify(spec)}; interior=${JSON.stringify(interior)}`);
+      }
+      const board = boardFromSpec(spec);
+      let root = -1;
+      for (let i = 0; i < board.cells.length; i++) {
+        if (board.cells[i] === WHITE) {
+          root = i;
+          break;
+        }
+      }
+      expect(root, `${name} has a defender block`).toBeGreaterThanOrEqual(0);
+      const eyes = eyeSpace(board, board.group(root).stones).map(lab).sort();
+      expect(eyes.length, `${name} must be sealed with the right eye space`).toBe(interior.length);
+      const attack = analyzeLife(board, root, {});
+      expect(attack.alive, `${name} verdict`).toBe(shouldLive);
+    }
+  });
+
   it('is fast enough for interactive use', () => {
     const started = Date.now();
     for (const [, interior] of deadShapes) verdict(interior);
@@ -151,8 +168,14 @@ describe('life and death: classic shapes match Go theory', () => {
   it('produces boards whose eye space matches the requested interior', () => {
     // Guards the construction helper itself: if the helper were wrong the
     // assertions above would be meaningless.
-    const { board, ring } = sealedShape(['D3', 'E3', 'F3']);
-    const root = (9 - Number(ring[0].slice(1))) * 9 + LETTERS.indexOf(ring[0][0]);
+    const board = boardFromSpec(buildSealed(['D3', 'E3', 'F3']));
+    let root = -1;
+    for (let i = 0; i < board.cells.length; i++) {
+      if (board.cells[i] === WHITE) {
+        root = i;
+        break;
+      }
+    }
     const group = board.group(root);
     expect(group.liberties.map(lab).sort()).toEqual(['D3', 'E3', 'F3']);
     void boardToDiagram;

@@ -1,5 +1,6 @@
 import type { Lesson } from '../../app/types';
 import { pos } from '../../learning/Exercises/pos';
+import { sealedShape, LIFE_SHAPES } from '../../learning/Exercises/sealedShape';
 
 /**
  * Lessons 16–30: the second half of the curriculum.
@@ -123,11 +124,9 @@ export const extraLessons: Lesson[] = [
     difficulty: 5,
     tags: ['死活', '眼形'],
     xp: 105,
-    position: pos(9, [
-      'O B2', 'O C2', 'O D2', 'O E2', 'O F2',
-      'O B3', 'O F3',
-      'O B4', 'O C4', 'O D4', 'O E4', 'O F4',
-    ]),
+    // A sealed 直三: the eye space really is D3/E3/F3, which is what makes the
+    // "play the middle and it dies" lesson true.
+    position: sealedShape(LIFE_SHAPES.straightThree),
     intro: {
       paragraphs: [
         '棋块围出的空地大小，决定了它的生死。有些形状已经活了，有些一点就死。',
