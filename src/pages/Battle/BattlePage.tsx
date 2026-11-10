@@ -547,13 +547,32 @@ export function BattlePage({ go }: { go: Navigate }) {
                 </div>
               </div>
             </div>
-            <p className="tiny muted" style={{ marginTop: 12 }}>
-              棋盘上的空点如果同时挨着黑白双方，算作「双活/中立」，不计入任何一方（共 {scoring.neutral} 点）。
-              死子会以 ✕ 标出，你也可以直接点棋盘上的棋子切换死活判定。
-            </p>
-            <p className="tiny mute-2" style={{ marginTop: 8 }}>
-              当前采用{scoring.method === 'chinese' ? '中国规则（数子法）' : '日本规则（数目法）'}。
-            </p>
+            <div className="score-analysis">
+              <h3 className="h3">棋盘分析</h3>
+              <ul className="summary-list">
+                <li>
+                  黑棋：{scoring.blackStones} 颗子，围出 {scoring.blackTerritory} 点空，合计 {scoring.black}。
+                </li>
+                <li>
+                  白棋：{scoring.whiteStones} 颗子，围出 {scoring.whiteTerritory} 点空，加贴目 {scoring.komi}，合计{' '}
+                  {scoring.white}。
+                </li>
+                <li>
+                  双方都不能围成空的中立点：{scoring.neutral} 点（这些点不算给任何一方）。
+                </li>
+                <li>
+                  {scoring.winner === 'draw'
+                    ? '双方盘面相同，本局和棋。'
+                    : `${scoring.winner === 1 ? '黑棋' : '白棋'}领先 ${scoring.margin} 点，${
+                        scoring.winner === 1 ? '白棋' : '黑棋'
+                      }需要在别处多围 ${Math.ceil(scoring.margin)} 点才能追上。`}
+                </li>
+              </ul>
+              <p className="tiny muted" style={{ marginTop: 10 }}>
+                死子会以 ✕ 标出。你可以直接点棋盘上的棋子切换死活判定，分数会立即重算。
+                采用{scoring.method === 'chinese' ? '中国规则（数子法）' : '日本规则（数目法）'}。
+              </p>
+            </div>
           </div>
         )}
       </Sheet>

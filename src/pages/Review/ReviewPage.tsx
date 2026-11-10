@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { parseCoord } from '../../engine/GoBoard/coordinates';
 import { GoBoardCanvas } from '../../components/Board/GoBoardCanvas';
 import { GoBoard } from '../../engine/GoBoard/GoBoard';
 import { BLACK, WHITE } from '../../engine/GoBoard/types';
@@ -197,12 +198,15 @@ export function GameReplayPage({ gameId, go }: { gameId: string; go: Navigate })
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const [keyMarks, setKeyMarks] = useState<number[]>([]);
+  const [jumpTo, setJumpTo] = useState('');
   const timer = useRef(0);
 
   useEffect(() => {
     getGames<GameRecord>().then((all) => {
       const rec = all.find((g) => g.id === gameId) ?? null;
       setRecord(rec);
+      setKeyMarks(rec?.marks ?? []);
       if (rec) {
         try {
           setPositions(positionsFromRecord(rec));
@@ -228,9 +232,28 @@ export function GameReplayPage({ gameId, go }: { gameId: string; go: Navigate })
 
   const board = positions[Math.min(step, positions.length - 1)];
   const marks = useMemo(() => {
-    if (!board || board.lastMove < 0) return [];
-    return [{ index: board.lastMove, kind: 'target' as const }];
-  }, [board]);
+    const out: Array<{ index: number; kind: 'target' | 'label'; text?: string }> = [];
+    if (board && board.lastMove >= 0) out.push({ index: board.lastMove, kind: 'target' });
+    // Key steps the user marked are labelled with their move number.
+    for (const n of keyMarks) {
+      const mv = record?.moves[n - 1];
+      if (!mv || mv.pass || !mv.at) continue;
+      const idx = parseCoord(record!.size, mv.at);
+      if (idx >= 0) out.push({ index: idx, kind: 'label', text: `★${n}` });
+    }
+    return out;
+  }, [board, keyMarks, record]);
+
+  const toggleKeyMark = useCallback(() => {
+    if (!record || step <= 0) return;
+    setKeyMarks((cur) => {
+      const next = cur.includes(step) ? cur.filter((n) => n !== step) : [...cur, step].sort((a, b) => a - b);
+      const updated = { ...record, marks: next };
+      setRecord(updated);
+      void putGame(updated);
+      return next;
+    });
+  }, [record, step]);
 
   if (loading) return <div className="page muted">正在读取棋谱…</div>;
   if (!record || !board) {
@@ -283,6 +306,14 @@ export function GameReplayPage({ gameId, go }: { gameId: string; go: Navigate })
             <button className="btn btn--sm" onClick={() => setStep(total)} aria-label="跳到末尾">
               ⏭
             </button>
+            <button
+              className={`btn btn--sm ${keyMarks.includes(step) ? 'btn--amber' : ''}`}
+              onClick={toggleKeyMark}
+              disabled={step === 0}
+              title="把当前这一步标记为关键步骤"
+            >
+              {keyMarks.includes(step) ? '★ 已标记' : '☆ 标记关键步'}
+            </button>
             <div className="row" style={{ gap: 4 }}>
               {[0.5, 1, 2].map((s) => (
                 <button
@@ -310,6 +341,29 @@ export function GameReplayPage({ gameId, go }: { gameId: string; go: Navigate })
                 第 {step} / {total} 手
               </span>
               <span>{record.komi} 目贴目</span>
+            </div>
+            <div className="row" style={{ gap: 6 }}>
+              <input
+                className="input"
+                style={{ maxWidth: 110, minHeight: 38 }}
+                value={jumpTo}
+                onChange={(e) => setJumpTo(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="跳到第几手"
+                inputMode="numeric"
+                aria-label="输入要跳转的手数"
+              />
+              <button
+                className="btn btn--sm"
+                disabled={!jumpTo}
+                onClick={() => {
+                  const n = Number(jumpTo);
+                  if (Number.isFinite(n)) setStep(Math.max(0, Math.min(total, n)));
+                  setJumpTo('');
+                }}
+              >
+                跳转
+              </button>
+              <span className="tiny mute-2">已标记 {keyMarks.length} 个关键步骤</span>
             </div>
           </div>
         </div>

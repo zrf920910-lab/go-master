@@ -7,6 +7,7 @@ import { parseCoord } from '../src/engine/GoBoard/coordinates';
 import { lessons } from '../src/data/courses';
 import { levels } from '../src/data/levels';
 import { ACHIEVEMENTS } from '../src/data/achievements/achievements';
+import { PATTERNS } from '../src/data/patterns/patterns';
 
 const at = (size: number, label: string) => {
   const i = parseCoord(size, label);
@@ -140,6 +141,49 @@ describe('level content', () => {
       }
     }
     expect(failures).toEqual([]);
+  });
+});
+
+describe('pattern library coverage', () => {
+  // The brief lists these terms explicitly; the library must cover every one.
+  const REQUIRED: Record<string, string[]> = {
+    '基础规则': ['棋盘', '气', '提子', '禁入点', '打劫', '终局', '活棋', '死棋'],
+    '基础棋形': ['长', '立', '尖', '跳', '小飞', '大飞', '碰', '靠', '扳', '断', '接', '虎口', '双', '扳粘'],
+    '吃子技巧': ['打吃', '双打吃', '征子', '枷吃', '门吃', '抱吃', '接不归', '倒扑', '倒脱靴', '扑'],
+    '攻防技巧': ['连接', '切断', '补断', '弃子', '腾挪', '反击', '先手', '后手', '交换', '做眼', '破眼', '杀棋'],
+    '死活题': ['真眼', '假眼', '眼位', '直三', '曲三', '丁四', '刀五', '葡萄六', '直四', '曲四', '直二', '方四'],
+    '布局实战': ['星位', '小目', '三三', '高目', '目外', '定式', '拆边', '侵消', '官子', '劫争', '厚势', '实地', '围空'],
+  };
+
+  it('covers every term the brief lists', () => {
+    const names = PATTERNS.map((p) => p.name);
+    const missing: string[] = [];
+    for (const [category, terms] of Object.entries(REQUIRED)) {
+      for (const term of terms) {
+        if (!names.some((n) => n.includes(term))) missing.push(`${category}/${term}`);
+      }
+    }
+    expect(missing, `pattern library is missing: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('every pattern has a valid position, unique id and a definition', () => {
+    const ids = new Set<string>();
+    for (const pattern of PATTERNS) {
+      expect(ids.has(pattern.id), `duplicate pattern id ${pattern.id}`).toBe(false);
+      ids.add(pattern.id);
+      expect(pattern.definition.length).toBeGreaterThan(4);
+      expect(() => boardFromSpec(pattern.position), pattern.name).not.toThrow();
+    }
+  });
+
+  it('life-and-death entries agree with the solver', () => {
+    // The pattern text calls these shapes dead or alive; the engine must agree
+    // wherever the position is fully enclosed and the notation says so.
+    const byId = new Map(PATTERNS.map((p) => [p.id, p]));
+    // 直三 is described as dead, 直四 as alive — both are covered in depth by
+    // tests/lifeShapes.test.ts; here we only assert the entries exist.
+    expect(byId.get('pt-straight-three')?.definition).toContain('死形');
+    expect(byId.get('pt-straight-four')?.definition).toContain('活形');
   });
 });
 

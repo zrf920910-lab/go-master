@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GoBoardCanvas } from '../../components/Board/GoBoardCanvas';
 import { GoBoard } from '../../engine/GoBoard/GoBoard';
 import { BLACK, WHITE } from '../../engine/GoBoard/types';
@@ -23,6 +23,13 @@ export function PracticePage() {
   const [showAllGroups, setShowAllGroups] = useState(false);
   const [shapeName, setShapeName] = useState('');
   const historyRef = useRef<GoBoard[]>([]);
+  /** Mirrors historyRef.length so the UI re-renders when moves are added. */
+  const [historyCount, setHistoryCount] = useState(0);
+  /** Replay mode: -1 = live board, otherwise the move number being shown. */
+  const [replayAt, setReplayAt] = useState(-1);
+  const [playing, setPlaying] = useState(false);
+  /** Colour every connected block when true (shows the block structure). */
+  const [showGroups, setShowGroups] = useState(false);
 
   const toggleGroup = useCallback(
     (index: number) => {
@@ -70,7 +77,10 @@ export function PracticePage() {
         return false;
       }
       historyRef.current.push(board.clone());
+      setHistoryCount(historyRef.current.length);
       setBoard(copy);
+      setReplayAt(-1);
+      setPlaying(false);
       setSelected(null);
       setLiberties([]);
       if (profile.settings.sound) playTone(res.captured.length ? 'capture' : 'place');
@@ -79,16 +89,60 @@ export function PracticePage() {
     [board, profile.settings.sound, toggleGroup],
   );
 
+  /** The board currently displayed (live, or a replayed earlier position). */
+  const viewBoard = useMemo(() => {
+    if (replayAt < 0 || replayAt >= historyRef.current.length) return board;
+    return historyRef.current[replayAt];
+  }, [board, replayAt]);
+
   const marks = useMemo<MarkView[]>(() => {
     const out: MarkView[] = [];
     for (const l of liberties) out.push({ index: l, kind: 'liberty' });
     if (showAllGroups) {
-      for (const g of board.allGroups()) {
-        if (g.liberties.length === 1) for (const l of g.liberties) out.push({ index: l, kind: 'target', color: 'rgba(179,64,47,.9)' });
+      for (const g of viewBoard.allGroups()) {
+        if (g.liberties.length === 1)
+          for (const l of g.liberties) out.push({ index: l, kind: 'target', color: 'rgba(179,64,47,.9)' });
       }
     }
+    if (showGroups) {
+      // Label each block with a letter so the learner can see which stones are
+      // connected — without changing the position in any way.
+      const letters = 'ABCDEFGHJKLMNOPQRSTUVWXYZ';
+      viewBoard
+        .allGroups()
+        .slice(0, 24)
+        .forEach((g, i) => {
+          const root = Math.min(...g.stones);
+          out.push({
+            index: root,
+            kind: 'label',
+            text: letters[i],
+            color: g.color === BLACK ? 'rgba(30,79,122,.92)' : 'rgba(31,107,79,.92)',
+          });
+        });
+    }
     return out;
-  }, [liberties, showAllGroups, board]);
+  }, [liberties, showAllGroups, showGroups, viewBoard]);
+
+  // Replay timer.
+  useEffect(() => {
+    if (!playing) return;
+    if (historyRef.current.length === 0) {
+      setPlaying(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setReplayAt((cur) => {
+        const next = cur + 1;
+        if (next >= historyRef.current.length) {
+          setPlaying(false);
+          return historyRef.current.length - 1;
+        }
+        return next;
+      });
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [playing, replayAt]);
 
   const saved = useMemo(() => profile.shapes ?? [], [profile.shapes]);
 
@@ -109,13 +163,13 @@ export function PracticePage() {
         <div className="practice__board">
           <GoBoardCanvas
             key={board.size}
-            size={board.size}
-            cells={board.cells}
-            onPlay={play}
-            onSelectGroup={toggleGroup}
+            size={viewBoard.size}
+            cells={viewBoard.cells}
+            onPlay={replayAt >= 0 ? undefined : play}
+            onSelectGroup={replayAt >= 0 ? undefined : toggleGroup}
             selectable={false}
-            turn={board.turn}
-            lastMove={board.lastMove}
+            turn={viewBoard.turn}
+            lastMove={replayAt >= 0 ? -1 : board.lastMove}
             marks={marks}
             selected={selected ?? []}
             showCoordinates={profile.settings.coordinates}
@@ -123,7 +177,65 @@ export function PracticePage() {
             ariaLabel="自由练习棋盘"
           />
           <div className="practice__hintline tiny mute-2">
-            {selected ? `已选中 ${selected.length} 颗棋子，共 ${liberties.length} 口气（蓝色圆点）` : '点一颗棋子查看它的气'}
+            {replayAt >= 0
+              ? `回放中：第 ${replayAt + 1} / ${historyCount} 手（棋盘只读）`
+              : selected
+                ? `已选中 ${selected.length} 颗棋子，共 ${liberties.length} 口气（蓝色圆点）`
+                : '点一颗棋子查看它的气'}
+          </div>
+
+          <div className="practice__replay">
+            <button
+              className="btn btn--sm"
+              disabled={historyCount === 0}
+              onClick={() => {
+                setPlaying(false);
+                setReplayAt(0);
+              }}
+            >
+              ⏮ 从头看
+            </button>
+            <button
+              className="btn btn--sm"
+              disabled={replayAt <= 0}
+              onClick={() => {
+                setPlaying(false);
+                setReplayAt((c) => Math.max(0, c - 1));
+              }}
+            >
+              上一步
+            </button>
+            <button
+              className="btn btn--sm btn--primary"
+              disabled={historyCount === 0}
+              onClick={() => {
+                if (replayAt < 0) setReplayAt(0);
+                setPlaying((p) => !p);
+              }}
+            >
+              {playing ? '⏸ 暂停' : '▶ 播放落子过程'}
+            </button>
+            <button
+              className="btn btn--sm"
+              disabled={replayAt < 0 || replayAt >= historyCount - 1}
+              onClick={() => {
+                setPlaying(false);
+                setReplayAt((c) => Math.min(historyCount - 1, c + 1));
+              }}
+            >
+              下一步
+            </button>
+            <button
+              className="btn btn--sm btn--ghost"
+              disabled={replayAt < 0}
+              onClick={() => {
+                setPlaying(false);
+                setReplayAt(-1);
+              }}
+            >
+              回到当前
+            </button>
+            <span className="tiny mute-2">已下 {historyCount} 手</span>
           </div>
         </div>
 
@@ -161,6 +273,9 @@ export function PracticePage() {
                     c.undo();
                     return c;
                   });
+                  historyRef.current.pop();
+                  setHistoryCount(historyRef.current.length);
+                  setReplayAt(-1);
                   setSelected(null);
                   setLiberties([]);
                 }}
@@ -176,6 +291,9 @@ export function PracticePage() {
                   setSelected(null);
                   setLiberties([]);
                   historyRef.current = [];
+                  setHistoryCount(0);
+                  setReplayAt(-1);
+                  setPlaying(false);
                 }}
               >
                 清空
@@ -208,6 +326,15 @@ export function PracticePage() {
                 type="checkbox"
                 checked={showAllGroups}
                 onChange={(e) => setShowAllGroups(e.target.checked)}
+              />
+              <i aria-hidden />
+            </label>
+            <label className="switch">
+              <span>标出棋块连接（每块一个字母）</span>
+              <input
+                type="checkbox"
+                checked={showGroups}
+                onChange={(e) => setShowGroups(e.target.checked)}
               />
               <i aria-hidden />
             </label>

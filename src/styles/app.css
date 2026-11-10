@@ -1341,6 +1341,12 @@ select.input {
   flex-direction: column;
   gap: 12px;
 }
+.score-analysis {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
 .score-card {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1391,6 +1397,18 @@ select.input {
 }
 .practice__hintline {
   text-align: center;
+}
+
+.practice__replay {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  padding-top: 4px;
+}
+.practice__replay .btn {
+  min-height: 36px;
 }
 .practice__side {
   display: flex;

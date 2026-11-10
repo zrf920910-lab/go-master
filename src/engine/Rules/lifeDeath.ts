@@ -57,25 +57,16 @@ export function eyeSpace(board: GoBoard, stones: number[]): number[] {
   return out;
 }
 
-/** Empty points within two steps of the group — where the fight happens. */
+/**
+ * The only points the search may use: the group's enclosed eye space.
+ *
+ * Searching outside it is wrong in two ways — the attacker could "burn" a ply
+ * by playing somewhere irrelevant, and the defender could escape the analysis
+ * entirely. Life and death of a sealed-in group is decided inside its own eye
+ * space, so that is where the search stays.
+ */
 export function localPoints(board: GoBoard, stones: number[]): number[] {
-  const out = new Set<number>();
-  let frontier = [...stones];
-  const visited = new Set<number>(stones);
-  for (let step = 0; step < 2; step++) {
-    const next: number[] = [];
-    for (const s of frontier) {
-      for (const n of board.neighbours(s)) {
-        if (board.cells[n] === EMPTY) out.add(n);
-        if (!visited.has(n)) {
-          visited.add(n);
-          next.push(n);
-        }
-      }
-    }
-    frontier = next;
-  }
-  return [...out];
+  return eyeSpace(board, stones);
 }
 
 function groupSizes(board: GoBoard, color: Color): number[] {
@@ -160,6 +151,16 @@ class Search {
   }
 }
 
+/**
+ * Analyse a sealed-in group.
+ *
+ * Reading life and death needs as many plies as the eye space has points times
+ * two (each point gets filled by one side and answered by the other), plus a
+ * couple to settle the capture. Shallow searches produce confidently wrong
+ * answers — 方四 needs 14 plies, 丁四 needs 12 — so the depth is derived from
+ * the eye space rather than fixed, and the node budget is generous enough to
+ * reach it for the small shapes this app teaches.
+ */
 export function analyzeLife(
   board: GoBoard,
   root: number,
@@ -172,8 +173,14 @@ export function analyzeLife(
 
   const eyes = eyeSpace(board, stones);
   const points = localPoints(board, stones);
-  const depth = opts.depth ?? 7;
-  const cap = opts.nodes ?? 4000;
+
+  // A group sealed in with nowhere to play cannot live.
+  if (points.length === 0) return { alive: false, eyeSpace: eyes, points };
+
+  const cap = opts.nodes ?? 400000;
+  // 2 plies per eye-space point + 4 to settle, capped so a huge eye space (which
+  // is alive anyway) does not explode.
+  const depth = opts.depth ?? Math.max(12, Math.min(24, points.length * 2 + 6));
 
   const search = new Search(color, stones.length, points, cap);
   const defenderFirst = board.turn === color;
