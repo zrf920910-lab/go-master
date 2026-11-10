@@ -1,0 +1,125 @@
+.online-offline {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  border-left: 3px solid var(--amber);
+}
+.online-offline__icon {
+  font-size: 32px;
+}
+
+.online-error {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--red-soft);
+  border: 1px solid #e3b8ae;
+  color: #7d2a1d;
+  font-size: 13.5px;
+  margin-bottom: 12px;
+}
+
+.online-login {
+  max-width: 620px;
+}
+
+.online-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.online-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.online-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.online-row__title {
+  font-weight: 700;
+  font-size: 13.5px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.online-game {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.75fr);
+  gap: 18px;
+  margin-top: 18px;
+  align-items: start;
+}
+@media (max-width: 960px) {
+  .online-game {
+    grid-template-columns: 1fr;
+  }
+}
+.online-game__board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.online-game__players {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  font-size: 14px;
+}
+.online-game__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+}
+.online-undo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--amber-soft);
+  border: 1px solid #eccb95;
+  font-size: 13.5px;
+  color: #6d4308;
+}
+.online-game__side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.online-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+.online-chat__line {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.online-chat__line b {
+  color: var(--ink);
+}

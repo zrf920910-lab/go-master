@@ -7,6 +7,7 @@ const TABS: Array<{ key: Route['name']; label: string; icon: string; routes: Rou
   { key: 'learn', label: '学习', icon: '◈', routes: ['learn', 'lesson'] },
   { key: 'levels', label: '闯关', icon: '⚑', routes: ['levels', 'level'] },
   { key: 'battle', label: '对弈', icon: '⚔', routes: ['battle'] },
+  { key: 'online', label: '在线', icon: '🌐', routes: ['online'] },
   { key: 'practice', label: '练习', icon: '✎', routes: ['practice', 'daily', 'library', 'patterns', 'mistakes'] },
 ];
 
@@ -87,11 +88,11 @@ export function NavBar({
             </button>
           );
         })}
-        <button className="tabbar__item" onClick={() => go({ name: 'review' })} aria-label="棋谱">
+        <button className="tabbar__item" onClick={() => go({ name: 'online' })} aria-label="在线对弈">
           <span className="tabbar__icon" aria-hidden>
-            ⌘
+            🌐
           </span>
-          <span className="tabbar__label">棋谱</span>
+          <span className="tabbar__label">在线</span>
         </button>
       </nav>
     </>

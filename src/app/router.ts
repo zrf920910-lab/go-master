@@ -15,6 +15,7 @@ export type Route =
   | { name: 'levels' }
   | { name: 'level'; id: string }
   | { name: 'battle' }
+  | { name: 'online' }
   | { name: 'practice' }
   | { name: 'daily' }
   | { name: 'review' }
@@ -41,6 +42,8 @@ function parse(hash: string): Route {
       return { name: 'level', id: arg ?? '' };
     case 'battle':
       return { name: 'battle' };
+    case 'online':
+      return { name: 'online' };
     case 'practice':
       return { name: 'practice' };
     case 'daily':

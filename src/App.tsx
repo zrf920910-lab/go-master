@@ -7,6 +7,7 @@ import { LessonPage } from './pages/Learning/LessonPage';
 import { LevelsPage } from './pages/Levels/LevelsPage';
 import { LevelPage } from './pages/Levels/LevelPage';
 import { BattlePage } from './pages/Battle/BattlePage';
+import { OnlinePage } from './pages/Online/OnlinePage';
 import { PracticePage } from './pages/Practice/PracticePage';
 import { DailyPage } from './pages/Daily/DailyPage';
 import { ReviewPage, GameReplayPage } from './pages/Review/ReviewPage';
@@ -61,6 +62,7 @@ function App() {
         {route.name === 'levels' && <LevelsPage go={nav} />}
         {route.name === 'level' && <LevelPage levelId={route.id} go={nav} />}
         {route.name === 'battle' && <BattlePage go={nav} />}
+        {route.name === 'online' && <OnlinePage />}
         {route.name === 'practice' && <PracticePage />}
         {route.name === 'daily' && <DailyPage go={nav} />}
         {route.name === 'review' && <ReviewPage go={nav} />}

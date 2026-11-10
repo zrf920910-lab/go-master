@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GoBoardCanvas } from '../../components/Board/GoBoardCanvas';
 import { GoBoard } from '../../engine/GoBoard/GoBoard';
 import { BLACK, WHITE, type Color, type ScoreResult } from '../../engine/GoBoard/types';
-import { GoAI, type Difficulty } from '../../engine/AI/GoAI';
+import type { AILevel } from '../../ai/types';
+import { createProvider, LEVEL_INFO, type AISettings } from '../../ai/registry';
+import { TeacherPanel } from '../../components/Teacher/TeacherPanel';
+import { KataGoPanel } from '../../components/Teacher/KataGoPanel';
 import { scoreBoard, describeScore, autoDetectDead } from '../../engine/Scoring/scoring';
 import { useStore } from '../../app/store';
 import type { Navigate } from '../../app/router';
@@ -19,20 +22,16 @@ import { toast } from '../../components/Shell/Toast';
  * the page says so instead of pretending to be a professional engine.
  */
 
-const DIFFICULTIES: Array<{ level: Difficulty; name: string; blurb: string }> = [
-  { level: 1, name: '入门', blurb: '随机落子，只保证不犯规。适合刚学会规则的人。' },
-  { level: 2, name: '初级', blurb: '会吃子、会逃跑，但看不清全局。' },
-  { level: 3, name: '中级', blurb: '能识别打吃、连接和简单的断点。' },
-  { level: 4, name: '高级', blurb: '会算一步攻防，重视角地与边上。' },
-  { level: 5, name: '挑战', blurb: '本地最强：带一层反击评估的战术搜索（非神经网络引擎）。' },
-];
+const DIFFICULTIES: Array<{ level: AILevel; name: string; blurb: string }> = ([1, 2, 3, 4, 5] as AILevel[]).map(
+  (level) => ({ level, name: LEVEL_INFO[level].name, blurb: LEVEL_INFO[level].blurb }),
+);
 
 const SIZES = [9, 13, 19] as const;
 
 export function BattlePage({ go }: { go: Navigate }) {
   const { profile, updateSettings, recordGame } = useStore();
   const [size, setSize] = useState<number>(9);
-  const [difficulty, setDifficulty] = useState<Difficulty>(2);
+  const [difficulty, setDifficulty] = useState<AILevel>(2);
   const [aiColor, setAiColor] = useState<Color>(WHITE);
   const [board, setBoard] = useState<GoBoard>(() => new GoBoard(9));
   const [thinking, setThinking] = useState(false);
@@ -45,7 +44,17 @@ export function BattlePage({ go }: { go: Navigate }) {
   const aiBusy = useRef(false);
 
   const humanColor: Color = aiColor === BLACK ? WHITE : BLACK;
-  const ai = useMemo(() => new GoAI(difficulty, Math.floor(Math.random() * 100000)), [difficulty, size]);
+  // The engine is chosen through the same registry the settings UI uses, so a
+  // remote KataGo service can be swapped in without touching this page's logic.
+  const aiSettings = useMemo<AISettings>(
+    () => ({ kind: 'local', level: difficulty, seed: 20240101 }),
+    [difficulty],
+  );
+  const ai = useMemo(() => createProvider(aiSettings), [aiSettings]);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [teacherOn, setTeacherOn] = useState(true);
+  const [focusPoint, setFocusPoint] = useState<number | undefined>(undefined);
+  const [panel, setPanel] = useState<'teacher' | 'katago'>('teacher');
   const gameOver = board.passes >= 2;
 
   const newGame = useCallback(
@@ -82,6 +91,7 @@ export function BattlePage({ go }: { go: Navigate }) {
         return false;
       }
       setLastHint(null);
+      setFocusPoint(index);
       setBoard(board.clone());
       if (profile.settings.sound) playTone(res.captured.length ? 'capture' : 'place');
       return true;
@@ -96,18 +106,29 @@ export function BattlePage({ go }: { go: Navigate }) {
     if (aiBusy.current) return;
     aiBusy.current = true;
     setThinking(true);
-    const delay = 420 + Math.random() * 320;
-    const timer = window.setTimeout(() => {
-      const move = ai.choose(board, aiColor);
-      const copy = board.clone();
-      if (move < 0 || copy.legalMoves(aiColor).length === 0) copy.pass(aiColor);
-      else copy.play(move, aiColor);
-      setBoard(copy);
-      setThinking(false);
-      aiBusy.current = false;
-      if (profile.settings.sound && move >= 0) playTone('place');
+    const delay = 320 + Math.random() * 220;
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        const best = await ai.choose({ board, color: aiColor, maxMoves: 1 });
+        if (cancelled) return;
+        const copy = board.clone();
+        if (best.move < 0 || copy.legalMoves(aiColor).length === 0) copy.pass(aiColor);
+        else if (!copy.play(best.move, aiColor).ok) copy.pass(aiColor);
+        setBoard(copy);
+        setAiError(null);
+        if (profile.settings.sound && best.move >= 0) playTone('place');
+      } catch (err) {
+        if (!cancelled) setAiError(`引擎出错：${(err as Error).message}`);
+      } finally {
+        if (!cancelled) {
+          setThinking(false);
+          aiBusy.current = false;
+        }
+      }
     }, delay);
     return () => {
+      cancelled = true;
       window.clearTimeout(timer);
       setThinking(false);
       aiBusy.current = false;
@@ -283,6 +304,11 @@ export function BattlePage({ go }: { go: Navigate }) {
               {lastHint}
             </p>
           )}
+          {aiError && (
+            <p className="battle__hint" role="alert">
+              {aiError}
+            </p>
+          )}
         </div>
 
         <aside className="battle__side">
@@ -430,10 +456,50 @@ export function BattlePage({ go }: { go: Navigate }) {
 
           <div className="card card--pad battle__info">
             <h2 className="h3">棋力说明</h2>
-            <p className="tiny muted">
+            <p className="tiny muted">{LEVEL_INFO[difficulty].measurable}</p>
+            <p className="tiny muted" style={{ marginTop: 6 }}>
               内置电脑对手是本地运行的战术搜索程序：能正确地吃子、逃跑、打吃和做眼，但没有神经网络棋力。
-              它不会伪装成职业引擎——「挑战」档也只是这一套算法里最强的设置。
+              上表的「实测依据」是这一档真正启用的判断能力，不是改个名字。
             </p>
+          </div>
+
+          <div className="card card--pad battle__panel">
+            <div className="segmented" style={{ marginBottom: 12 }}>
+              <button
+                className={`segmented__item ${panel === 'teacher' ? 'segmented__item--on' : ''}`}
+                onClick={() => setPanel('teacher')}
+              >
+                AI 老师
+              </button>
+              <button
+                className={`segmented__item ${panel === 'katago' ? 'segmented__item--on' : ''}`}
+                onClick={() => setPanel('katago')}
+              >
+                KataGo
+              </button>
+            </div>
+            {panel === 'teacher' ? (
+              <TeacherPanel
+                board={board}
+                color={board.turn}
+                focus={focusPoint}
+                teacherOn={teacherOn}
+                onToggle={setTeacherOn}
+                onPlaySuggestion={(i) => {
+                  if (board.turn !== humanColor) return;
+                  playMove(i);
+                }}
+                compact
+              />
+            ) : (
+              <KataGoPanel
+                board={board}
+                color={board.turn}
+                onPlay={(i) => {
+                  if (board.turn === humanColor) playMove(i);
+                }}
+              />
+            )}
           </div>
         </aside>
       </div>

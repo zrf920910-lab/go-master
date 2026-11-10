@@ -29,6 +29,17 @@ src/
     store.tsx             学习进度 / 经验 / 成就 / 设置（Context + 本地持久化）
     types.ts              全部领域类型：课程、关卡、棋谱、进度
     sound.ts              WebAudio 合成音效（无音频资源，离线可用）
+  ai/                     AI 层（与规则引擎、UI 都解耦）
+    types.ts              AIProvider 接口
+    reading.ts            气/打吃/连接/切断/征子的读取原语
+    teacher.ts            教学型 AI：由棋盘事实生成解释
+    localProvider.ts      五档本地战术引擎
+    katago.ts             KataGo adapter（analysis + GTP）
+    registry.ts           provider 注册与选择
+  online/                 在线对弈（OGS）
+    ogsAuth.ts            OAuth2 + PKCE、REST
+    ogsSocket.ts          WebSocket 协议客户端
+    onlineSession.ts      在线对局状态（与本地隔离）
   engine/                 围棋引擎（与 UI 完全解耦）
     GoBoard/              棋盘、气、连通块、提子、禁入点、打劫、悔棋
     Scoring/              中国规则数子 / 日本规则数目、双活中立点、死子判定
@@ -136,6 +147,68 @@ tests/                    引擎、内容、服务层测试
 
 ---
 
+## AI 围棋老师（教学型 AI）
+
+### 五档陪练，按「实际启用的判断能力」分级
+
+难度不是改名字。每一档启用了哪些判断，写在 `src/ai/localProvider.ts` 的 `collectCandidates`
+里，并由 `tests/aiLevels.test.ts` 逐条验证：
+
+| 档位 | 会做什么 | 测试怎么证明 |
+|---|---|---|
+| 初级 | 只保证合法 + 角边价值，不主动吃子 | 有提子机会时**不**去提 |
+| 普通 | 提子 + 救自己被吃的棋 | 有提子机会时必提；被打吃时必逃 |
+| 进阶 | 打吃 + 连接 + 切断 | 无子可提时下出打吃；能被切断时先连接 |
+| 高级 | 一手反击评估 + 征子阅读 | 不会下出被对手立刻大面积提子的棋 |
+| 大师 | 更宽候选 + 避免自打吃 + 抢做眼 | 战术基准题得分 ≥ 3/3 |
+
+基准测试里还断言了**单调性**：高档位在固定战术题集上的得分不低于低档位。
+
+### 老师说什么，由棋盘算出来
+
+`src/ai/teacher.ts` 生成的每一句话都带 `facts`（气数、被提子数、连接棋子数……），
+界面会把这份依据一起显示出来。覆盖的问题：
+
+- 为什么这一步危险 → 落子后自己是否只剩一口气（`evaluateMoveSafety`）
+- 为什么这里应该连接 → 是否同时贴着两块自家棋（`connectsTwoBlocks`）
+- 为什么这颗棋子会被吃掉 → 这块棋真实的气（`groupFacts`）
+- 有没有更好的下法 → 引擎候选点 + 老师给出的具体坐标
+- 该进攻还是防守 → 双方被打吃棋块的数量对比
+
+测试会检查：解释里出现的坐标都真实存在、声称能提的子真的能被引擎提掉、没有打吃时不会报警。
+
+### KataGo 接入
+
+`src/ai/katago.ts` 支持两种真实协议：
+
+- **analysis**：`katago analysis` 的 JSON 行协议（`moveInfos` / `rootInfo` / `winrate` / `scoreLead`）
+- **GTP**：`kata-analyze` 输出（`info move E4 visits 487 winrate 0.48 ...`），解析器有单测
+
+在「对弈 → KataGo」面板填入自己的服务地址即可使用，支持胜率条和推荐落子列表。
+**本项目不内置 KataGo**：浏览器版需要 WASM/WebGPU 重编译 + 10–95 MB 网络，详见 `docs/FEASIBILITY.md`。
+未配置时面板明确显示「未配置」，不会假装可用。
+
+---
+
+## 在线对弈（OGS）
+
+通过 OGS 官方接口，实测可用（详见 `docs/FEASIBILITY.md`）：
+
+- **OAuth2 + PKCE**：公共客户端，不接触密码、不保存 `client_secret`，令牌存 sessionStorage
+- **WebSocket** `wss://online-go.com/socket`：`authenticate` / `game/connect` / `game/move` / `game/resign` / `game/undo/request`
+- **REST**：大厅、我的对局、玩家资料
+
+**安全边界**：纯静态站点没有固定域名，所以 `client_id` 由用户填写并在界面说明；
+令牌只在浏览器本地，退出登录会调用 `revoke_token`。
+
+**状态隔离**：在线棋局是 `OnlineGameSession`（`src/online/onlineSession.ts`），
+与本地 `GoBoard` + 对局页面状态是两套模型。本地棋谱只有在用户点「保存棋谱」时才会写入，
+在线对局永远不会自动改动课程、关卡或错题本。
+
+**离线优先**：断网时在线入口显示「离线」说明，课程 / 关卡 / 本地 AI / 棋谱全部照常。
+
+---
+
 ## 测试
 
 ```bash
@@ -149,7 +222,11 @@ node scripts/smoke.mjs http://127.0.0.1:5173   # 端到端冒烟（需先 npm ru
 - `tests/engine.test.ts` — 气、提子、禁入点、打劫、悔棋、计分、AI 合法性
 - `tests/content.test.ts` — **逐题重放**：每道练习题与关卡任务的「标准答案」都在真实引擎上执行，验证合法且满足语义判定；每帧演示都会编译，确保不会出现非法棋盘
 - `tests/services.test.ts` — SGF 往返、棋谱回放、死子判定、AI 完整对局
-- `scripts/smoke.mjs` — 浏览器冒烟：12 个页面 × 3 种视口 + 4 项真实交互
+- `tests/aiLevels.test.ts` — 五档棋力校准 + 老师解释的事实校验（20 个）
+- `tests/katago.test.ts` — KataGo GTP/analysis 解析、编码、诚实性（8 个）
+- `tests/online.test.ts` — OGS 坐标转换、棋局重建、PKCE（10 个）
+- `tests/integration.test.ts` — provider 契约、老师不污染棋局、整盘对弈（8 个）
+- `scripts/smoke.mjs` — 浏览器冒烟：13 个页面 × 3 种视口 + 4 项真实交互
 
 内容测试是防止教学错误的护栏：新增课程时如果棋形写错，测试会直接指出是哪一题。
 

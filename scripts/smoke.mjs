@@ -20,6 +20,7 @@ const routes = [
   ['level', '/#/level/lv-01'],
   ['lesson', '/#/lesson/l-liberty'],
   ['battle', '/#/battle'],
+  ['online', '/#/online'],
   ['practice', '/#/practice'],
   ['daily', '/#/daily'],
   ['review', '/#/review'],
